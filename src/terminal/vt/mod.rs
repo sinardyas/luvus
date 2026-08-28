@@ -12,6 +12,11 @@ use ratatui::style::{Color, Modifier};
 
 use crate::terminal::pty::InputAction;
 
+/// Internal continuation marker used by [`VtEngine::visible_rows_aligned`].
+/// A terminal never renders NUL as text, so it can represent the second cell of
+/// a wide glyph without being confused with an actual space between words.
+pub(crate) const ALIGNED_WIDE_CELL: char = '\0';
+
 /// Which terminal engine backs a pane.
 ///
 /// One variant today. It exists so that the choice of engine is a named
@@ -160,6 +165,14 @@ pub trait VtEngine: Send {
     /// Every visible row as normalized plain text. Wide-character spacer cells
     /// are omitted, so callers must not use string indexes as terminal columns.
     fn visible_rows(&self) -> Vec<String>;
+
+    /// Like [`Self::visible_rows`], but every terminal column contributes exactly
+    /// one `char`. A wide glyph's continuation cell is represented by
+    /// [`ALIGNED_WIDE_CELL`], so callers can preserve both cell coordinates and
+    /// the distinction between a continuation and an actual space. Use this
+    /// (never `visible_rows`) when a screen column must address text — e.g. the
+    /// token under a double-click, or the link under a `Ctrl`-hover.
+    fn visible_rows_aligned(&self) -> Vec<String>;
 
     /// Bounded public capture for harnesses. Implementations serialize only
     /// normalized grid text and SGR styles; raw child control sequences never
